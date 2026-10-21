@@ -48,12 +48,65 @@
       text-align: center;
       line-height: 1.5;
     }
+
+    #levelForm {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      margin: 0;
+      padding: 0;
+      z-index: 1000;
+    }
+
+    #levelInput {
+      display: block;
+      width: 24px;
+      height: 24px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      outline: none;
+      border-radius: 0;
+      background: transparent;
+      color: transparent;
+      caret-color: transparent;
+      font-size: 12px;
+      opacity: 0;
+      cursor: text;
+    }
+
+    #levelInput:focus {
+      width: 150px;
+      height: 36px;
+      padding: 8px;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      background: white;
+      color: #222;
+      caret-color: #222;
+      opacity: 1;
+    }
   </style>
 </head>
 
 <body>
   <h1>I'm Not a Robot</h1>
+
   <p id="levelLabel"></p>
+
+  <form id="levelForm">
+    <input
+      id="levelInput"
+      type="number"
+      min="1"
+      max="48"
+      step="1"
+      placeholder="Level"
+      aria-label="Enter level number"
+      autocomplete="off"
+      required
+    >
+  </form>
 
   <iframe
     id="game"
@@ -61,36 +114,43 @@
     width="400"
     height="540"
     scrolling="no"
-    src="https://embed.neal.fun/not-a-robot/43">
+    src="https://embed.neal.fun/not-a-robot/1">
   </iframe>
 
   <p id="status" aria-live="polite"></p>
 
   <script>
-    const FIRST_LEVEL = 43;
+    const FIRST_LEVEL = 1;
     const LAST_LEVEL = 48;
     const EXCLUDED_LEVELS = [45];
-    
+
     const LEVEL_KEY = "nealRobotCurrentLevel";
     const COMPLETED_KEY = "nealRobotCompletedLevels";
 
     const game = document.getElementById("game");
     const levelLabel = document.getElementById("levelLabel");
+    const levelForm = document.getElementById("levelForm");
+    const levelInput = document.getElementById("levelInput");
     const status = document.getElementById("status");
+
+    function isValidLevel(level) {
+      return (
+        Number.isInteger(level) &&
+        level >= FIRST_LEVEL &&
+        level <= LAST_LEVEL
+      );
+    }
 
     function loadSavedLevel() {
       const saved = Number(localStorage.getItem(LEVEL_KEY));
 
-      if (
-        Number.isInteger(saved) &&
-       saved >= FIRST_LEVEL &&
-saved <= LAST_LEVEL &&
-!EXCLUDED_LEVELS.includes(saved)
-      ) {
-        return EXCLUDED_LEVELS.includes(saved) ? saved + 1 : saved;
+      if (!isValidLevel(saved)) {
+        return FIRST_LEVEL;
       }
 
-      return FIRST_LEVEL;
+      return EXCLUDED_LEVELS.includes(saved)
+        ? saved + 1
+        : saved;
     }
 
     function loadCompletedLevels() {
@@ -99,15 +159,11 @@ saved <= LAST_LEVEL &&
           localStorage.getItem(COMPLETED_KEY) || "[]"
         );
 
-        if (!Array.isArray(saved)) return [];
+        if (!Array.isArray(saved)) {
+          return [];
+        }
 
-        return [...new Set(
-          saved.filter(level =>
-            Number.isInteger(level) &&
-            level >= FIRST_LEVEL &&
-            level <= LAST_LEVEL
-          )
-        )];
+        return [...new Set(saved.filter(isValidLevel))];
       } catch {
         return [];
       }
@@ -116,16 +172,26 @@ saved <= LAST_LEVEL &&
     let currentLevel = loadSavedLevel();
     let completedLevels = loadCompletedLevels();
 
-    function renderLevel() {
-      levelLabel.textContent =
-        `Level ${currentLevel} of ${LAST_LEVEL}`;
-
+    function saveProgress() {
       localStorage.setItem(
         LEVEL_KEY,
         String(currentLevel)
       );
 
+      localStorage.setItem(
+        COMPLETED_KEY,
+        JSON.stringify(completedLevels)
+      );
+    }
+
+    function renderLevel() {
+      levelLabel.textContent =
+        `Level ${currentLevel} of ${LAST_LEVEL}`;
+
       status.textContent = "";
+      levelInput.value = "";
+
+      saveProgress();
 
       game.src =
         `https://embed.neal.fun/not-a-robot/${currentLevel}`;
@@ -134,33 +200,53 @@ saved <= LAST_LEVEL &&
     function advanceAfterVerification() {
       if (!completedLevels.includes(currentLevel)) {
         completedLevels.push(currentLevel);
-
-        localStorage.setItem(
-          COMPLETED_KEY,
-          JSON.stringify(completedLevels)
-        );
       }
 
       if (currentLevel === LAST_LEVEL) {
+        saveProgress();
+
         status.textContent =
-          "Congratulations! You've completed levels 43–48. " +
+          "Congratulations! You've completed the final level. " +
           "Enjoy the final screen and certificate in the game above.";
+
         return;
       }
 
       currentLevel += 1;
 
-while (EXCLUDED_LEVELS.includes(currentLevel)) {
-  currentLevel += 1;
-}
+      while (
+        currentLevel <= LAST_LEVEL &&
+        EXCLUDED_LEVELS.includes(currentLevel)
+      ) {
+        currentLevel += 1;
+      }
 
-      localStorage.setItem(
-        LEVEL_KEY,
-        String(currentLevel)
-      );
+      if (currentLevel > LAST_LEVEL) {
+        saveProgress();
+
+        status.textContent =
+          "Congratulations! You've completed all available levels.";
+
+        return;
+      }
 
       renderLevel();
     }
+
+    levelForm.addEventListener("submit", event => {
+      event.preventDefault();
+
+      const requestedLevel = Number(levelInput.value);
+
+      if (!isValidLevel(requestedLevel)) {
+        status.textContent =
+          "Please enter a whole number between 1 and 48.";
+        return;
+      }
+
+      currentLevel = requestedLevel;
+      renderLevel();
+    });
 
     window.addEventListener("message", event => {
       if (event.origin !== "https://embed.neal.fun") {
