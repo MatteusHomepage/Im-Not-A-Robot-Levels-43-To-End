@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>I'm Not a Robot</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      color: #222;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      text-align: center;
+      font-size: 28px;
+    }
+
+    #levelLabel {
+      margin: 0 0 16px;
+      color: #666;
+    }
+
+    iframe {
+      display: block;
+      width: min(400px, 100%);
+      height: 540px;
+      border: none;
+      background: white;
+    }
+
+    #status {
+      max-width: 400px;
+      margin-top: 16px;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>I'm Not a Robot</h1>
+  <p id="levelLabel"></p>
+
+  <iframe
+    id="game"
+    title="I'm Not a Robot CAPTCHA"
+    width="400"
+    height="540"
+    scrolling="no"
+    src="https://embed.neal.fun/not-a-robot/43">
+  </iframe>
+
+  <p id="status" aria-live="polite"></p>
+
+  <script>
+    const FIRST_LEVEL = 43;
+    const LAST_LEVEL = 48;
+
+    const LEVEL_KEY = "nealRobotCurrentLevel";
+    const COMPLETED_KEY = "nealRobotCompletedLevels";
+
+    const game = document.getElementById("game");
+    const levelLabel = document.getElementById("levelLabel");
+    const status = document.getElementById("status");
+
+    function loadSavedLevel() {
+      const saved = Number(localStorage.getItem(LEVEL_KEY));
+
+      if (
+        Number.isInteger(saved) &&
+        saved >= FIRST_LEVEL &&
+        saved <= LAST_LEVEL
+      ) {
+        return saved;
+      }
+
+      return FIRST_LEVEL;
+    }
+
+    function loadCompletedLevels() {
+      try {
+        const saved = JSON.parse(
+          localStorage.getItem(COMPLETED_KEY) || "[]"
+        );
+
+        if (!Array.isArray(saved)) return [];
+
+        return [...new Set(
+          saved.filter(level =>
+            Number.isInteger(level) &&
+            level >= FIRST_LEVEL &&
+            level <= LAST_LEVEL
+          )
+        )];
+      } catch {
+        return [];
+      }
+    }
+
+    let currentLevel = loadSavedLevel();
+    let completedLevels = loadCompletedLevels();
+
+    function renderLevel() {
+      levelLabel.textContent =
+        `Level ${currentLevel} of ${LAST_LEVEL}`;
+
+      localStorage.setItem(
+        LEVEL_KEY,
+        String(currentLevel)
+      );
+
+      status.textContent = "";
+
+      game.src =
+        `https://embed.neal.fun/not-a-robot/${currentLevel}`;
+    }
+
+    function advanceAfterVerification() {
+      if (!completedLevels.includes(currentLevel)) {
+        completedLevels.push(currentLevel);
+
+        localStorage.setItem(
+          COMPLETED_KEY,
+          JSON.stringify(completedLevels)
+        );
+      }
+
+      if (currentLevel === LAST_LEVEL) {
+        status.textContent =
+          "Congratulations! You've completed levels 43–48. " +
+          "Enjoy the final screen and certificate in the game above.";
+        return;
+      }
+
+      currentLevel += 1;
+
+      localStorage.setItem(
+        LEVEL_KEY,
+        String(currentLevel)
+      );
+
+      renderLevel();
+    }
+
+    window.addEventListener("message", event => {
+      if (event.origin !== "https://embed.neal.fun") {
+        return;
+      }
+
+      if (event.source !== game.contentWindow) {
+        return;
+      }
+
+      if (event.data?.type !== "captcha-completed") {
+        return;
+      }
+
+      advanceAfterVerification();
+    });
+
+    renderLevel();
+  </script>
+</body>
+</html>
