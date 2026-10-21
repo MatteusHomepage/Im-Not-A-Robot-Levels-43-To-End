@@ -69,7 +69,8 @@
   <script>
     const FIRST_LEVEL = 43;
     const LAST_LEVEL = 48;
-
+    const EXCLUDED_LEVELS = [45];
+    
     const LEVEL_KEY = "nealRobotCurrentLevel";
     const COMPLETED_KEY = "nealRobotCompletedLevels";
 
@@ -82,8 +83,9 @@
 
       if (
         Number.isInteger(saved) &&
-        saved >= FIRST_LEVEL &&
-        saved <= LAST_LEVEL
+       saved >= FIRST_LEVEL &&
+saved <= LAST_LEVEL &&
+!EXCLUDED_LEVELS.includes(saved)
       ) {
         return saved;
       }
@@ -147,6 +149,10 @@
       }
 
       currentLevel += 1;
+
+while (EXCLUDED_LEVELS.includes(currentLevel)) {
+  currentLevel += 1;
+}
 
       localStorage.setItem(
         LEVEL_KEY,
