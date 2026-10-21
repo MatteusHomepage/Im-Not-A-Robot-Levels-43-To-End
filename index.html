@@ -87,7 +87,7 @@
 saved <= LAST_LEVEL &&
 !EXCLUDED_LEVELS.includes(saved)
       ) {
-        return saved;
+        return EXCLUDED_LEVELS.includes(saved) ? saved + 1 : saved;
       }
 
       return FIRST_LEVEL;
